@@ -1,3 +1,8 @@
+# docc
+.puppeteer.json
+body.md
+cover.md
+mermaid-filter.err
 
 # Playwright
 node_modules/

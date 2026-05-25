@@ -1,67 +1,148 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 
-test.describe('Activity 1: GitHub Sign In', () => {
-  test('shows an error with dummy credentials', async ({ page }) => {
-    await page.goto('https://github.com/');
-    await page.getByRole('link', { name: /sign in/i }).click();
-    await page.locator('#login_field').fill('dummy.user@example.com');
-    await page.locator('#password').fill('dummy-password-123');
-    await page.getByRole('button', { name: /sign in/i }).click();
+async function logCount(label: string, locator: Locator) {
+  const count = await locator.count();
+  console.log(`${label}: ${count}`);
+}
+
+test.describe('Activity 1: MercadoLibre locators', () => {
+  test('use the 7 recommended locators on MercadoLibre', async ({ page }) => {
+    await page.goto('https://www.mercadolibre.com.mx/');
+
+    const loginLink = page.getByRole('link', { name: 'Ingresa', exact: true });
+    await expect(loginLink).toBeVisible();
+
+    const searchBox = page.getByPlaceholder(/buscar productos/i);
+    await logCount('placeholder locator', searchBox);
+
+    const labelLocator = page.getByLabel(/buscar/i);
+    await logCount('label locator', labelLocator);
+
+    const navHeader = page.getByTestId('nav-header');
+    await logCount('nav-header', navHeader);
+
+    const altTextLocator = page.getByAltText(/mercado libre/i);
+    await logCount('alt text locator', altTextLocator);
+
+    const textLocator = page.getByText(/mercado libre|ingresa|ayuda/i);
+    await logCount('text locator', textLocator);
+
+    const titleLocator = page.getByTitle(/mercado libre|ingresa|ayuda/i);
+    await logCount('title locator', titleLocator);
+
+    await page.screenshot({
+      path: 'artifacts/mercadolibre-home.png',
+      fullPage: true,
+    });
+  });
+});
+
+test.describe('Activity 2: TodoMVC tests', () => {
+
+  test('create a todo item @smoke', async ({ page }) => {
+    await page.goto('https://demo.playwright.dev/todomvc/#/');
+
+    const input = page.getByPlaceholder('What needs to be done?');
+
+    await input.fill('Learn Playwright');
+    await input.press('Enter');
+
+    await expect(page.getByText('Learn Playwright')).toBeVisible();
+
+    expect(await page.locator('.todo-list li').count()).toBe(1);
+
+    await page.screenshot({
+      path: 'artifacts/create-todo.png',
+      fullPage: true,
+    });
+  });
+
+  test('complete a todo item @locator', async ({ page }) => {
+    await page.goto('https://demo.playwright.dev/todomvc/#/');
+
+    const input = page.getByPlaceholder('What needs to be done?');
+
+    await input.fill('Buy milk');
+    await input.press('Enter');
+
+    await page.locator('.todo-list li').first().locator('.toggle').check();
 
     await expect(
-      page.getByText(/incorrect username or password|authentication failed|sign in/i)
-    ).toBeVisible();
+      page.getByText('2 items left')
+    ).not.toBeVisible();
+
+    await page.screenshot({
+      path: 'artifacts/complete-todo.png',
+      fullPage: true,
+    });
   });
-});
 
-test.describe('Activity 2: Browsers & Browser context', () => {
-  test('firefox context and page count', async ({ browser }, testInfo) => {
-    test.skip(testInfo.project.name !== 'firefox', 'Run this test in Firefox');
+  test('navigation links using getByRole @links', async ({ page }) => {
+    await page.goto('https://demo.playwright.dev/todomvc/#/');
 
-    const context = await browser.newContext();
-    console.log('Browser contexts length before page:', browser.contexts().length);
-    const page = await context.newPage();
-    console.log('Browser contexts length after page:', browser.contexts().length);
-    await page.goto('https://playwright.dev/');
-    await context.close();
-    await browser.close();
-  });
-});
+    const input = page.getByPlaceholder('What needs to be done?');
 
-test.describe('Activity 3: Multiple pages', () => {
-  test('chromium browser with two pages', async ({ browser }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'Run this test in Chromium');
+    await input.fill('Task 1');
+    await input.press('Enter');
 
-    const context = await browser.newContext();
-    const page1 = await context.newPage();
-    await page1.goto('https://playwright.dev/docs/intro');
-    const page2 = await context.newPage();
-    await page2.goto('https://playwright.dev/docs/writing-tests');
+    await page.getByRole('link', { name: 'Active' }).click();
 
-    const pages = context.pages();
-    console.log('Pages in context:', pages.length);
-
-    await context.close();
-    await browser.close();
-  });
-});
-
-test.describe('Activity 4: Pages Methods', () => {
-  test('firefox screenshot and back navigation', async ({ browser }, testInfo) => {
-    test.skip(testInfo.project.name !== 'firefox', 'Run this test in Firefox');
-
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    await page.goto('https://playwright.dev/');
-    await page.screenshot({ path: 'artifacts/playwright-home.png', fullPage: true });
-
-    await page.goto('https://github.com/');
-    console.log('Page loaded!');
+    await expect(page).toHaveURL(/#\/active/);
 
     await page.goBack();
 
-    await context.close();
-    await browser.close();
+    await expect(page).toHaveURL(/#\//);
+
+    await page.screenshot({
+      path: 'artifacts/navigation-links.png',
+      fullPage: true,
+    });
   });
+
+  test('soft assertions and page methods @soft', async ({ page }) => {
+    test.slow();
+
+    await page.goto('https://demo.playwright.dev/todomvc/#/');
+
+    const input = page.getByPlaceholder('What needs to be done?');
+
+    await input.fill('Testing soft assertions');
+    await input.press('Enter');
+
+    await expect.soft(
+      page.getByText('Testing soft assertions')
+    ).toBeVisible();
+
+    console.log(await page.title());
+
+    await page.reload();
+
+    await expect(
+      page.getByText('Testing soft assertions')
+    ).toBeVisible();
+
+    await page.screenshot({
+      path: 'artifacts/soft-assertions.png',
+      fullPage: true,
+    });
+  });
+
+  test('expected failure demo @fail', async ({ page }) => {
+    test.fail();
+
+    await page.goto('https://demo.playwright.dev/todomvc/#/');
+
+    const input = page.getByPlaceholder('What needs to be done?');
+
+    await input.fill('Expected failure');
+    await input.press('Enter');
+
+    await page.screenshot({
+      path: 'artifacts/expected-failure.png',
+      fullPage: true,
+    });
+
+    await expect(page.locator('.todo-list li')).toHaveCount(5);
+  });
+
 });
